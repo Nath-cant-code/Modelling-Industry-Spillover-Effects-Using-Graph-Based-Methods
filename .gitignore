@@ -1,0 +1,6 @@
+/data
+/outputs
+/logs
+
+# MacOS stuff
+.DS_Store
