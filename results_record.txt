@@ -1,0 +1,443 @@
+test 0 ---------------------------------------------------------------------------------
+
+// base parameters:
+
+# Part 2 Hyperparameters (market-agnostic; defined once before the loop)
+TAIL_QUANTILE = 0.90  # ⚠️ EXPERIMENTATION HANDLE: [WHAT: quantile defining "tail" cross-section | WHY: 0.90 is a
+                      # moderate tail; too high (0.99) starves training data | HOW: try 0.95 for a stricter
+                      # extreme-spillover target, or replace with next-day realized volatility (mean, not quantile)]
+REGIME_TCI_QUANTILE = 0.75  # ⚠️ EXPERIMENTATION HANDLE: [WHAT: TCI quantile defining "Turbulent" | WHY: 0.75 is a
+                            # moderate stress cutoff | HOW: try 0.90 for a stricter "crisis-only" turbulent regime]
+
+HIDDEN_CHANNELS = 16  # ⚠️ EXPERIMENTATION HANDLE: [WHAT: GCN/GAT hidden width | WHY: with only 11 nodes/day,
+                      # wide hidden layers overfit fast | HOW: sweep {8, 16, 32} and watch val QLIKE]
+GAT_HEADS = 4          # ⚠️ EXPERIMENTATION HANDLE: [WHAT: GAT attention heads | HOW: sweep {1, 2, 4, 8}]
+DROPOUT = 0.1          # ⚠️ EXPERIMENTATION HANDLE: [WHAT: dropout rate | HOW: raise to 0.3-0.5 if the train/val
+                       # QLIKE gap widens]
+
+LR = 1e-3              # ⚠️ EXPERIMENTATION HANDLE: [WHAT: Adam learning rate | HOW: sweep {3e-4, 1e-3, 3e-3}]
+WEIGHT_DECAY = 1e-4     # ⚠️ EXPERIMENTATION HANDLE: [WHAT: L2 regularization | HOW: sweep {0, 1e-5, 1e-4, 1e-3}]
+MAX_EPOCHS = 200
+PATIENCE = 15           # ⚠️ EXPERIMENTATION HANDLE: [WHAT: early-stopping patience | HOW: raise to 25-30 if val
+                       # loss is still trending down]
+CLIP_NORM = 1.0         # ⚠️ EXPERIMENTATION HANDLE: [WHAT: gradient clipping max-norm | HOW: try 0.5 for
+                       # tighter control on stress days]
+SEEDS = [0, 1, 2]       # ⚠️ EXPERIMENTATION HANDLE: [WHAT: multi-seed averaging pool | HOW: expand to
+                       # [0,1,2,3,4] for a tighter confidence band]
+
+// results:
+
+### CHINA — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01029      0.00197
+1  DY-GCN  32524.66211      0.03320
+2     GAT  37574.10156      0.03383
+
+### CHINA — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  97.1702      0.0            37574.088118
+1  GAT vs DY-GCN   6.0204      0.0             5049.436300
+2  DY-GCN vs HAR  36.0477      0.0            32524.651818
+
+### US — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.02770      0.00512
+1  DY-GCN  39017.28906      0.03513
+2     GAT      0.16374      0.01365
+
+### US — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  19.8813      0.0                0.136039
+1  GAT vs DY-GCN -75.5378      0.0           -39017.125297
+2  DY-GCN vs HAR  75.5371      0.0            39017.261336
+
+test 0 ---------------------------------------------------------------------------------
+test 1 ---------------------------------------------------------------------------------
+
+// change:
+
+TAIL_QUANTILE = 0.95
+
+// results:
+// both heat maps full pink
+
+### CHINA — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01970      0.00509
+1  DY-GCN  44179.48438      0.04198
+2     GAT      0.33515      0.02132
+
+### CHINA — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  33.1337      0.0                0.315452
+1  GAT vs DY-GCN -97.3058      0.0           -44179.146570
+2  DY-GCN vs HAR  97.3045      0.0            44179.462022
+
+### US — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01671      0.00170
+1  DY-GCN  41603.54688      0.03953
+2     GAT  41265.33203      0.03952
+
+### US — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  81.2533  0.00000            41265.318889
+1  GAT vs DY-GCN  -1.4196  0.15573             -338.212604
+2  DY-GCN vs HAR  93.3848  0.00000            41603.531494
+
+test 1 ---------------------------------------------------------------------------------
+test 2 ---------------------------------------------------------------------------------
+
+// change:
+
+REGIME_TCI_QUANTILE = 0.90
+
+// results:
+// US heatmap fully pink
+// China's Energy, Materials, & Healthcare were bright
+
+### CHINA — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01743      0.00296
+1  DY-GCN  31896.08008      0.02872
+2     GAT      0.16138      0.01122
+
+### CHINA — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  20.3420      0.0                0.143954
+1  GAT vs DY-GCN -83.0753      0.0           -31895.917610
+2  DY-GCN vs HAR  83.0742      0.0            31896.061563
+
+### US — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01749      0.00434
+1  DY-GCN  39453.80078      0.03552
+2     GAT  39453.80078      0.03552
+
+### US — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  99.5142      0.0             39453.78696
+1  GAT vs DY-GCN   0.0000      1.0                 0.00000
+2  DY-GCN vs HAR  99.5142      0.0             39453.78696
+
+test 2 ---------------------------------------------------------------------------------
+test 3 ---------------------------------------------------------------------------------
+
+// change: 
+
+HIDDEN_CHANNELS = 8
+
+// results:
+// China heatmap very bright
+
+### CHINA — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01743      0.00296
+1  DY-GCN      0.19287      0.01197
+2     GAT  31896.08008      0.02872
+
+### CHINA — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  83.0742      0.0            31896.061563
+1  GAT vs DY-GCN  83.0755      0.0            31895.886118
+2  DY-GCN vs HAR  21.2049      0.0                0.175445
+
+### US — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01749      0.00434
+1  DY-GCN      0.18250      0.01435
+2     GAT  39453.80078      0.03552
+
+### US — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  99.5142      0.0            39453.786960
+1  GAT vs DY-GCN  99.5152      0.0            39453.621948
+2  DY-GCN vs HAR  23.5598      0.0                0.165012
+
+test 3 ---------------------------------------------------------------------------------
+test 4 ---------------------------------------------------------------------------------
+
+// change: 
+
+HIDDEN_CHANNELS = 32
+
+// results:
+// China's Energy, Materials, & Healthcare were dark
+
+### CHINA — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01743      0.00296
+1  DY-GCN  31896.08008      0.02872
+2     GAT  31896.08008      0.02872
+
+### CHINA — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  83.0742      0.0            31896.061563
+1  GAT vs DY-GCN   0.0000      1.0                0.000000
+2  DY-GCN vs HAR  83.0742      0.0            31896.061563
+
+### US — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01749      0.00434
+1  DY-GCN  39453.80078      0.03552
+2     GAT      0.30373      0.01749
+
+### US — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  32.7757      0.0                0.286239
+1  GAT vs DY-GCN -99.5156      0.0           -39453.500721
+2  DY-GCN vs HAR  99.5142      0.0            39453.786960
+
+test 4 ---------------------------------------------------------------------------------
+test 5 ---------------------------------------------------------------------------------
+
+// change:
+
+GAT_HEADS = 1
+
+// results:
+// China's Energy, Materials, & Healthcare were bright
+// US heatmap fully pink
+
+### CHINA — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01743      0.00296
+1  DY-GCN  31896.08008      0.02872
+2     GAT      0.16138      0.01122
+
+### CHINA — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  20.3420      0.0                0.143954
+1  GAT vs DY-GCN -83.0753      0.0           -31895.917610
+2  DY-GCN vs HAR  83.0742      0.0            31896.061563
+
+### US — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01749      0.00434
+1  DY-GCN  39453.80078      0.03552
+2     GAT  39453.80078      0.03552
+
+### US — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  99.5142      0.0             39453.78696
+1  GAT vs DY-GCN   0.0000      1.0                 0.00000
+2  DY-GCN vs HAR  99.5142      0.0             39453.78696
+
+test 5 ---------------------------------------------------------------------------------
+test 6 ---------------------------------------------------------------------------------
+
+// change: 
+
+GAT_HEADS = 2
+
+// results:
+// China's Energy, Materials, & Healthcare were bright
+// US heatmap fully pink
+
+### CHINA — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01743      0.00296
+1  DY-GCN  31896.08008      0.02872
+2     GAT      0.16138      0.01122
+
+### CHINA — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  20.3420      0.0                0.143954
+1  GAT vs DY-GCN -83.0753      0.0           -31895.917610
+2  DY-GCN vs HAR  83.0742      0.0            31896.061563
+
+### US — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01749      0.00434
+1  DY-GCN  39453.80078      0.03552
+2     GAT  39453.80078      0.03552
+
+### US — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  99.5142      0.0             39453.78696
+1  GAT vs DY-GCN   0.0000      1.0                 0.00000
+2  DY-GCN vs HAR  99.5142      0.0             39453.78696
+
+test 6 ---------------------------------------------------------------------------------
+test 7 ---------------------------------------------------------------------------------
+
+// change:
+
+GAT_HEADS = 8
+
+// results:
+// China's Energy, Materials, & Healthcare were bright
+// US heatmap fully pink
+
+### CHINA — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01743      0.00296
+1  DY-GCN  31896.08008      0.02872
+2     GAT      0.16138      0.01122
+
+### CHINA — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  20.3420      0.0                0.143954
+1  GAT vs DY-GCN -83.0753      0.0           -31895.917610
+2  DY-GCN vs HAR  83.0742      0.0            31896.061563
+
+### US — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01749      0.00434
+1  DY-GCN  39453.80078      0.03552
+2     GAT  39453.80078      0.03552
+
+### US — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  99.5142      0.0             39453.78696
+1  GAT vs DY-GCN   0.0000      1.0                 0.00000
+2  DY-GCN vs HAR  99.5142      0.0             39453.78696
+
+test 7 ---------------------------------------------------------------------------------
+
+// summary of test 5-7:
+
+changing GAT_HEADS resulted in 
+no significant changes in heat map for both markets
+
+test 8 ---------------------------------------------------------------------------------
+
+// change: 
+
+DROPOUT = 0.3
+
+// results:
+// China's Energy, Materials, & Healthcare were bright
+// US heatmap fully pink
+// QLIKE for China and US flip (swap)
+
+### CHINA — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01743      0.00296
+1  DY-GCN  31896.08008      0.02872
+2     GAT      0.16138      0.01122
+
+### CHINA — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  20.3420      0.0                0.143954
+1  GAT vs DY-GCN -83.0753      0.0           -31895.917610
+2  DY-GCN vs HAR  83.0742      0.0            31896.061563
+
+### US — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01749      0.00434
+1  DY-GCN  39453.80078      0.03552
+2     GAT  39453.80078      0.03552
+
+### US — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  99.5142      0.0             39453.78696
+1  GAT vs DY-GCN   0.0000      1.0                 0.00000
+2  DY-GCN vs HAR  99.5142      0.0             39453.78696
+
+test 8 ---------------------------------------------------------------------------------
+test 9 ---------------------------------------------------------------------------------
+
+// change:
+
+DROPOUT = 0.5
+
+// results:
+// both heatmaps fully pink
+// QLIKE flipped back to test 0's parameters' results
+
+### CHINA — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01030      0.00200
+1  DY-GCN  37564.47656      0.03382
+2     GAT  37564.47656      0.03382
+
+### CHINA — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  108.879      0.0            37564.467124
+1  GAT vs DY-GCN    0.000      1.0                0.000000
+2  DY-GCN vs HAR  108.879      0.0            37564.467124
+
+### US — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.02470      0.00435
+1  DY-GCN  33333.14844      0.03001
+2     GAT      0.15575      0.01156
+
+### US — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  23.0365      0.0                0.131051
+1  GAT vs DY-GCN -85.7244      0.0           -33332.991612
+2  DY-GCN vs HAR  85.7236      0.0            33333.122662
+
+test 9 ---------------------------------------------------------------------------------
+test 10 ---------------------------------------------------------------------------------
+
+// change: 
+
+LR = 3e-4
+
+// results:
+// GCN & GAT graphs for China & US seem to drop considerably low
+// China heatmap fully pink 
+// US heatmap very dark
+
+### CHINA — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01030      0.00200
+1  DY-GCN  37564.47656      0.03382
+2     GAT      0.45213      0.01881
+
+### CHINA — Diebold-Mariano Significance ###
+      comparison   DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR   37.6981      0.0                0.441834
+1  GAT vs DY-GCN -108.8812      0.0           -37564.025290
+2  DY-GCN vs HAR  108.8790      0.0            37564.467124
+
+### US — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.02470      0.00435
+1  DY-GCN  33333.14844      0.03001
+2     GAT  33333.14844      0.03001
+
+### US — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR  85.7236      0.0            33333.122662
+1  GAT vs DY-GCN   0.0000      1.0                0.000000
+2  DY-GCN vs HAR  85.7236      0.0            33333.122662
+
+test 10 ---------------------------------------------------------------------------------
+test 11 ---------------------------------------------------------------------------------
+
+// change: 
+
+LR = 3e-3
+
+// results:
+// both heatmaps fully pink
+
+### CHINA — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.01030      0.00200
+1  DY-GCN  37564.47656      0.03382
+2     GAT  35205.30859      0.03371
+
+### CHINA — Diebold-Mariano Significance ###
+      comparison   DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR   53.9738  0.00000            35205.299488
+1  GAT vs DY-GCN   -3.8088  0.00014            -2359.167636
+2  DY-GCN vs HAR  108.8790  0.00000            37564.467124
+
+### US — Out-of-Sample Forecast Metrics ###
+    model        QLIKE  Pinball@0.9
+0     HAR      0.02470      0.00435
+1  DY-GCN  33333.14844      0.03001
+2     GAT   6882.50928      0.02932
+
+### US — Diebold-Mariano Significance ###
+      comparison  DM_stat  p_value  mean_loss_diff (A - B)
+0     GAT vs HAR   7.6062      0.0             6882.485094
+1  GAT vs DY-GCN -29.1471      0.0           -26450.637568
+2  DY-GCN vs HAR  85.7236      0.0            33333.122662
+
+test 11 ---------------------------------------------------------------------------------
